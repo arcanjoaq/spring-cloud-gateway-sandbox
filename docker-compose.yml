@@ -1,0 +1,42 @@
+version: "3.8"
+services:
+  gateway:
+    hostname: gateway
+    network_mode: host
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1024m
+        reservations:
+          memory: 512m
+    build:
+      context: .
+      dockerfile: DockerfileGateway
+    healthcheck:
+      test: wget -q --spider http://localhost:8080 || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+  app:
+    hostname: app
+    network_mode: host
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 128m
+        reservations:
+          memory: 64m
+    build:
+      context: .
+      dockerfile: DockerfileApp
+    healthcheck:
+      test: wget -q --spider http://localhost:8888 || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+

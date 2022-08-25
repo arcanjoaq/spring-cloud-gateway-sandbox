@@ -1,0 +1,180 @@
+server:
+  port: 8080
+spring:
+  cloud:
+    gateway:
+      routes:
+        #### PATH ####
+
+        # Pass directly
+        # /service/foo -> /service/foo
+        - id: route-path-1
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/service/**
+
+        # Change Path completely
+        # /foo -> /bar
+        - id: route-path-2
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/foo
+          filters:
+            - SetPath=/bar
+
+        # Rewrite Path
+        # /bar/{id} -> /foo/{id}
+        - id: route-path-3
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/bar/{id}
+          filters:
+            - SetPath=/foo/{id}
+
+        # Remove Path (method 1)
+        # /def/abc -> /abc
+        - id: route-path-4
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/def/{segment}
+          filters:
+            - SetPath=/{segment}
+
+        # Remove Path (method 2)
+        # /ghi/abc -> /abc
+        - id: route-path-5
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/ghi/**
+          filters:
+            - RewritePath=/ghi(?<segment>/?.*), $\{segment}
+
+        # StripPrefix
+        # /prefix -> /
+        - id: route-prefix
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/voucher/establishments/establishment
+          filters:
+            - StripPrefix=1
+
+        # Multiple Path
+        # /games/list -> /list
+        # /my-games/list -> /list
+        - id: route-multiple-path-1
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/games/list, /my-games/list
+          filters:
+            - StripPrefix=1
+
+        #### QUERY PARAM ####
+
+        # Add query param
+        # /users -> /users?companyId=123
+        - id: route-query-1
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/users
+          filters:
+            - AddRequestParameter=companyId, 123
+
+        # Remove query param
+        # /products?x-lang=en_US -> /products
+        - id: route-query-2
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/products
+          filters:
+            - RemoveRequestParameter=x-lang
+
+        #### REQUEST HEADER ####
+
+        # Set request header
+        # /customers -> /products --header 'x-company-id:123'
+        - id: route-request-1
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/customers
+          filters:
+            - SetRequestHeader=x-company-id, 123
+
+        # Remove request header
+        # /components --header 'x-company-id:123' -> /components
+        - id: route-request-2
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/components
+          filters:
+            - RemoveRequestHeader=x-company-id
+
+        #### RESPONSE HEADER ####
+
+        # Set response header
+        # /characters -> /characters -> --response-header (empty) --> --response-header 'x-gateway:my-gateway'
+        - id: route-response-1
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/characters
+          filters:
+            - SetResponseHeader=x-gateway, my-gateway
+
+        # Remove response header
+        # /videos -> /videos -> --response-header 'x-foo:456' -> --response-header (empty)
+        - id: route-response-2
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/videos
+          filters:
+            - RemoveResponseHeader=x-gateway
+
+        #### RETRY FILTER ####
+        # /retry -> /retry
+        # https://spring.getdocs.org/en-US/spring-cloud-docs/spring-cloud-gateway/gatewayfilter-factories/the-retry-gatewayfilter-factory.html
+        # https://piotrminkowski.com/2020/02/23/timeouts-and-retries-in-spring-cloud-gateway/
+        - id: route-retry-1
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/retry
+          filters:
+            - name: Retry
+              args:
+                series: SERVER_ERROR
+                retries: 4 # Retry count starts at 0
+                statuses: SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                methods: GET
+                backoff:
+                  firstBackoff: 10ms
+                  maxBackoff: 50ms
+                  factor: 2
+                  basedOnPreviousValue: false
+
+        #### CUSTOM GLOBAL FILTER ####
+
+        - id: route-modify-response
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/modify
+
+        #### GATEWAY FILTER FACTORY ####
+
+        - id: route-simple-gateway-filter-factory
+          uri: ${redirect.app.uri}
+          predicates:
+            - Path=/simple
+          filters:
+            - Simple
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+
+logging:
+  level:
+    org.springframework.cloud.gateway.filter.factory: TRACE
+
+redirect:
+  app:
+    uri: http://localhost:8888
